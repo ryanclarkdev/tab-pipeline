@@ -11,7 +11,7 @@ def test_bootstrap_run(tmp_path, monkeypatch) -> None:
     wav_file.setnchannels(1)
     wav_file.setsampwidth(2)
     wav_file.setframerate(44100)
-    wav_file.writeframes(b"\\x00\\x00" * 4410)
+    wav_file.writeframes(b"\x00\x00" * 4410)
 
   runs_dir = tmp_path / "runs"
 
@@ -30,7 +30,11 @@ def test_bootstrap_run(tmp_path, monkeypatch) -> None:
   assert manifest["input"]["source_name"] == "example.wav"
   assert manifest["stages"][0]["name"] == "ingest"
   assert manifest["stages"][1]["name"] == "normalize"
-  assert manifest["stages"][1]["status"] == "completed"
+  assert manifest["stages"][2]["name"] == "separate"
+  assert manifest["stages"][2]["status"] == "completed"
 
   normalized_path = run_dir / "workspace" / "normalize" / "normalized.wav"
+  bass_stem_path = run_dir / "workspace" / "separate" / "bass.wav"
+
   assert normalized_path.exists()
+  assert bass_stem_path.exists()

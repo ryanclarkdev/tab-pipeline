@@ -21,3 +21,11 @@ class RunPaths:
   @property
   def normalized_audio_path(self) -> Path:
     return self.normalize_dir / "normalized.wav"
+
+  @property
+  def separate_dir(self) -> Path:
+    return self.workspace_dir / "separate"
+
+  @property
+  def bass_stem_path(self) -> Path:
+    return self.separate_dir / "bass.wav"
