@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
+from tab_pipeline.adapters.audio_separator_backend import AudioSeparatorBackend
 from tab_pipeline.adapters.stub_separator import StubSeparator
 from tab_pipeline.config import load_config
 from tab_pipeline.core.manifest import write_manifest
@@ -8,7 +9,7 @@ from tab_pipeline.core.paths import RunPaths
 from tab_pipeline.models.config import PipelineConfig
 from tab_pipeline.models.context import RunContext
 from tab_pipeline.models.run import RunManifest
-from tab_pipeline.paths import RUNS_DIR, ensure_directories
+from tab_pipeline.paths import ROOT_DIR, RUNS_DIR, ensure_directories
 from tab_pipeline.stages.ingest import ingest_input
 from tab_pipeline.stages.normalize import normalize_audio
 from tab_pipeline.stages.separate import separate_bass_stem
@@ -31,9 +32,22 @@ def _create_run_context(config: PipelineConfig) -> RunContext:
   )
 
 
-def _build_separator(backend: str):
+def _build_separator(ctx: RunContext):
+  backend = ctx.config.separation.backend
+
   if backend == "stub":
     return StubSeparator()
+
+  if backend == "audio_separator":
+    model_dir = Path(ctx.config.separation.model_file_dir)
+    if not model_dir.is_absolute():
+      model_dir = ROOT_DIR / model_dir
+
+    return AudioSeparatorBackend(
+      model_filename=ctx.config.separation.model_filename,
+      model_file_dir=model_dir,
+      sample_rate=ctx.config.normalize.sample_rate,
+    )
 
   raise ValueError(f"Unsupported separation backend: {backend}")
 
@@ -53,7 +67,7 @@ def bootstrap_run(input_path: Path, config_path: Path | None = None) -> Path:
     channels=ctx.config.normalize.channels,
   )
 
-  separator = _build_separator(ctx.config.separation.backend)
+  separator = _build_separator(ctx)
 
   separate_stage = separate_bass_stem(
     input_path=ctx.paths.normalized_audio_path,

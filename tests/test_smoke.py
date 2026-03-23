@@ -18,8 +18,17 @@ def test_bootstrap_run(tmp_path, monkeypatch) -> None:
   monkeypatch.setattr("tab_pipeline.paths.RUNS_DIR", runs_dir)
   monkeypatch.setattr("tab_pipeline.core.runner.RUNS_DIR", runs_dir)
 
-  run_dir = bootstrap_run(input_file)
+  config_file = tmp_path / "test-config.yaml"
+  config_file.write_text(
+    '''
+  separation:
+    backend: stub
+  '''.strip(),
+    encoding="utf-8",
+  )
 
+  run_dir = bootstrap_run(input_file, config_path=config_file)
+  
   assert run_dir.exists()
 
   manifest_path = run_dir / "run.json"

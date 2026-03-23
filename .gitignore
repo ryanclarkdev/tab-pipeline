@@ -47,6 +47,8 @@ data/cache/*
 !data/cache/.gitkeep
 data/exports/*
 !data/exports/.gitkeep
+data/models/*
+!data/models/.gitkeep
 
 # Optional local scratch space
 scratch/

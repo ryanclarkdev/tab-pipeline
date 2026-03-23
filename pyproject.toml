@@ -8,6 +8,7 @@ dependencies = [
   "typer>=0.12,<1.0",
   "pydantic>=2.7,<3.0",
   "pyyaml>=6.0,<7.0",
+  "audio-separator[cpu]>=0.43.1,<0.44.0",
 ]
 
 [project.optional-dependencies]

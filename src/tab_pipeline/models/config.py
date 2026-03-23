@@ -14,8 +14,10 @@ class NormalizeSection(BaseModel):
 
 
 class SeparationSection(BaseModel):
-  backend: Literal["stub"] = "stub"
+  backend: Literal["stub", "audio_separator"] = "stub"
   target_stem: Literal["bass"] = "bass"
+  model_filename: str = "htdemucs_6s.yaml"
+  model_file_dir: str = "data/models/audio-separator"
 
 
 class PipelineConfig(BaseModel):

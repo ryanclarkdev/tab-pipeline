@@ -7,7 +7,7 @@ normalize:
   codec: pcm_s16le
 
 separation:
-  backend: stub
+  backend: audio_separator
   target_stem: bass
   model_filename: htdemucs_6s.yaml
   model_file_dir: data/models/audio-separator
