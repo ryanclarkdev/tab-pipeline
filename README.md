@@ -1,230 +1,88 @@
 # tab-pipeline
 
-Local Python pipeline for staged audio-to-tab transcription workflows.
+A staged audio processing pipeline for bass and guitar stem separation.
 
-## Overview
+## What it does
 
-`tab-pipeline` is a CLI-first Python project for building an audio transcription pipeline in small, inspectable stages.
+`tab-pipeline` takes audio files as input and produces separated bass and guitar stems through a series of inspectable stages:
 
-The long-term direction is:
+1. **Ingest** — Validate input, compute file hash, record metadata
+2. **Normalize** — Convert to a canonical mono WAV using ffmpeg
+3. **Separate** — Extract bass and guitar stems (pluggable backend: `stub` or `audio_separator`)
 
-- full-song audio input
-- source separation
-- instrument-focused processing
-- transcription and cleanup
-- fretboard or tab mapping
-- digital tab export
+Each run creates a timestamped workspace under `data/runs/` with manifests and output stems.
 
-The current implementation is intentionally narrower. The project now has a working staged pipeline foundation with input ingest, audio normalization, and multi-stem separation plumbing.
+## Quick start
 
-## Current progress
+### Requirements
 
-Implemented so far:
+- Python 3.11
+- `uv` — dependency manager
+- `ffmpeg` and `ffprobe`
 
-- project scaffold with `uv`, Python 3.11, and `src/` layout
-- CLI entrypoint with explicit `run` subcommand
-- per-run workspace creation under `data/runs/`
-- run manifest generation
-- ingest stage with input validation and file hashing
-- normalize stage using `ffmpeg`
-- structured per-run workspace paths
-- typed config models with YAML defaults and override support
-- separation stage with a pluggable adapter interface
-- stub separation backend for fast local testing
-- real `audio-separator` backend integration path
-- multi-stem separation support for:
-  - bass
-  - guitar
-
-## Current pipeline stages
-
-At the moment, a pipeline run performs these stages:
-
-1. **ingest**
-   - validates the input path
-   - resolves the source file
-   - computes SHA-256
-   - records source metadata in the run manifest
-
-2. **normalize**
-   - converts the source file into a canonical WAV
-   - currently targets a mono working file
-   - records output metadata in the run manifest
-
-3. **separate**
-   - separates requested stems into canonical workspace paths
-   - currently supports `bass` and `guitar`
-   - can run with either:
-     - `stub`
-     - `audio_separator`
-
-## Current repository layout
-
-```text
-tab-pipeline/
-  pyproject.toml
-  README.md
-  .python-version
-  .gitignore
-
-  configs/
-    local-audio-separator.yaml
-
-  src/
-    tab_pipeline/
-      cli.py
-      config.py
-      paths.py
-
-      config/
-        defaults.yaml
-
-      core/
-        hashing.py
-        manifest.py
-        paths.py
-        runner.py
-
-      models/
-        config.py
-        context.py
-        run.py
-
-      stages/
-        ingest.py
-        normalize.py
-        separate.py
-
-      adapters/
-        audio_separator_backend.py
-        ffmpeg.py
-        separator.py
-        stub_separator.py
-
-  data/
-    inputs/
-    runs/
-    cache/
-    exports/
-
-  tests/
-    test_config.py
-    test_smoke.py
-```
-
-## Runtime requirements
-
-### System dependencies
-
-The project currently depends on:
-
-- **Python 3.11**
-- **uv** for Python environment and dependency management
-- **ffmpeg**
-- **ffprobe**
-
-`ffprobe` is typically installed alongside `ffmpeg`.
-
-### Python dependencies
-
-The project uses:
-
-- `typer`
-- `pydantic`
-- `pyyaml`
-- `audio-separator` for the real separation backend
-
-### Verify installed tools
+### Installation
 
 ```bash
-python3 --version
-uv --version
-ffmpeg -version
-ffprobe -version
-```
-
-Expected Python version:
-
-```text
-3.11
-```
-
-## Installation
-
-### 1. Clone the repository
-
-```bash
-git clone <YOUR_REPO_URL>
-cd tab-pipeline
-```
-
-### 2. Install `uv`
-
-#### macOS / Linux
-
-```bash
+# Install uv (macOS/Linux)
 curl -LsSf https://astral.sh/uv/install.sh | sh
-```
 
-For other install methods, refer to the official `uv` documentation.
-
-### 3. Install `ffmpeg`
-
-#### macOS (Homebrew)
-
-```bash
+# Install ffmpeg (macOS)
 brew install ffmpeg
-```
 
-#### Ubuntu / Debian
-
-```bash
-sudo apt update
-sudo apt install ffmpeg
-```
-
-#### Windows
-
-Install `ffmpeg` using your preferred package manager or the official binaries, then ensure both `ffmpeg` and `ffprobe` are available on your `PATH`.
-
-### 4. Sync project dependencies
-
-```bash
+# Clone and sync dependencies
+git clone https://github.com/ryanclarkdev/tab-pipeline.git
+cd tab-pipeline
 uv sync --extra dev
 ```
 
-This installs runtime and development dependencies into the local `.venv`.
-
-## Development setup
-
-You can use `uv run ...` directly, which is the simplest workflow.
-
-If you want to activate the environment manually:
-
-### macOS / Linux
+### Run a test
 
 ```bash
-source .venv/bin/activate
+# Generate a test audio file
+mkdir -p scratch
+ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t 1 scratch/test.wav -y
+
+# Run the default pipeline (stub backend)
+uv run tab-pipeline run scratch/test.wav
+
+# Run with real audio-separator backend
+uv run tab-pipeline run scratch/test.wav --config configs/local-audio-separator.yaml
 ```
 
-### Windows PowerShell
+### Test suite
 
-```powershell
-.venv\Scripts\Activate.ps1
+```bash
+uv run pytest
 ```
 
-## Configuration model
+## Output
 
-The project uses a two-layer config approach:
+Each run produces a timestamped directory under `data/runs/`:
 
-- `src/tab_pipeline/config/defaults.yaml`
-  - packaged application defaults
-- `configs/*.yaml`
-  - local or environment-specific override files
+```
+data/runs/<run-id>/
+  run.json                    # Run manifest and metadata
+  workspace/
+    normalize/
+      normalized.wav          # Canonical mono file
+    separate/
+      bass.wav               # Separated bass stem
+      guitar.wav             # Separated guitar stem
+```
 
-The loader always reads packaged defaults first, then optionally deep-merges an override file supplied at runtime.
+The manifest (`run.json`) includes:
+- Run ID, creation time
+- Input file metadata and hash
+- Effective config snapshot
+- Stage records with timing and artifact details
 
-### Current default config shape
+## Configuration
+
+The project uses layered configs:
+- **Packaged defaults**: `src/tab_pipeline/config/defaults.yaml`
+- **Local overrides**: `configs/*.yaml` (passed via `--config` flag)
+
+### Default settings
 
 ```yaml
 pipeline:
@@ -244,145 +102,53 @@ separation:
   model_file_dir: data/models/audio-separator
 ```
 
-## Running the pipeline
+## Backends
 
-### Stub backend
+**Stub backend** (default)
+- Fast, deterministic, useful for testing structure and validation
+- Generates empty stems matching expected output structure
 
-The default backend is `stub`, which is useful for local structure and test validation.
+**Audio-separator backend**
+- Real stem separation using the htdemucs model
+- Requires model files in `data/models/audio-separator/`
+- Activated via `--config configs/local-audio-separator.yaml`
 
-Run with defaults:
+## Project structure
 
-```bash
-uv run tab-pipeline run /path/to/real-audio-file.wav
+```
+tab-pipeline/
+  src/tab_pipeline/
+    cli.py                 # Command-line entrypoint
+    config.py              # Config loading and validation
+    constants.py           # Project-level paths and directories
+    
+    config/                # Packaged defaults
+    core/                  # Core utilities (hashing, manifest, paths, runner)
+    models/                # Data models (config, context, run)
+    stages/                # Pipeline stages (ingest, normalize, separate)
+    adapters/              # Backend implementations
+  
+  configs/                 # Local override configs
+  data/
+    inputs/                # Source audio files
+    runs/                  # Run outputs (git-ignored)
+    models/                # Model files
+  
+  tests/                   # Test suite
 ```
 
-### Real audio-separator backend
+## Design
 
-A local override config can switch the backend to `audio_separator`.
+The project prioritizes:
 
-Example override file:
+- **Inspectable outputs** — Every run creates a timestamped workspace with full manifests
+- **Pluggable backends** — Swap implementations for separation without changing core logic
+- **Staged processing** — Each step (ingest → normalize → separate) is independent and auditable
+- **Typed configuration** — Pydantic models with YAML defaults and runtime overrides
 
-```yaml
-separation:
-  backend: audio_separator
-  requested_stems:
-    - bass
-    - guitar
-  model_filename: htdemucs_6s.yaml
-  model_file_dir: data/models/audio-separator
-```
+## Notes
 
-Run with the real backend:
-
-```bash
-uv run tab-pipeline run /path/to/real-audio-file.wav --config configs/local-audio-separator.yaml
-```
-
-## Important input note
-
-The pipeline now invokes `ffmpeg` during normalization, so the input must be a **real audio file**.
-
-This will **not** work:
-
-```bash
-touch scratch/test.wav
-```
-
-That only creates an empty file with a `.wav` extension.
-
-A quick way to generate a valid silent test WAV is:
-
-```bash
-mkdir -p scratch
-ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t 1 scratch/test.wav
-uv run tab-pipeline run scratch/test.wav
-```
-
-## Current run output shape
-
-A typical run currently produces something like:
-
-```text
-data/runs/<run-id>/
-  run.json
-  workspace/
-    normalize/
-      normalized.wav
-    separate/
-      bass.wav
-      guitar.wav
-```
-
-## Manifest behavior
-
-Each run writes a `run.json` manifest containing:
-
-- run ID
-- creation time
-- effective config snapshot
-- input metadata
-- stage records
-
-Current stage records include timing and per-stage details such as output paths and artifact sizes.
-
-## Testing
-
-Run the test suite with:
-
-```bash
-uv run pytest
-```
-
-The tests currently use the `stub` separation backend so they remain lightweight and deterministic.
-
-## Design principles
-
-The project is being built around a few constraints:
-
-- **stage-by-stage development**
-- **inspectable run outputs**
-- **deterministic structure**
-- **clear filesystem boundaries**
-- **CLI-first execution**
-- **pluggable adapter seams for heavier backends**
-
-## Current boundaries
-
-What the project does now:
-
-- staged audio preparation
-- basic artifact creation
-- bass and guitar stem generation plumbing
-
-What it does **not** do yet:
-
-- stem conditioning
-- note transcription
-- onset or pitch cleanup
-- fretboard mapping
-- tablature export
-- persistent content-addressed caching
-- rich failure/retry state handling
-
-## Near-term next steps
-
-Likely next areas of work:
-
-- artifact modeling for stage outputs
-- better failure handling and manifest status updates
-- stem conditioning
-- note transcription
-- downstream bass-first processing
-- later guitar-specific experimentation
-
-## Notes on generated data
-
-Generated runtime artifacts under `data/` are intended to remain local and are ignored by git except for placeholder files used to preserve directory structure.
-
-Typical generated outputs include:
-
-- run directories
-- normalized audio
-- separated stems
-- future cache artifacts
+- **Input files must be valid audio** — the pipeline invokes ffmpeg during normalization
+- **Generated outputs are local** — `data/runs/` and `data/models/` are git-ignored
+- **Tests use the stub backend** — keeping them lightweight and deterministic
 

@@ -1,6 +1,7 @@
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess:
@@ -41,7 +42,7 @@ def run_ffmpeg_normalize(
   _run(command)
 
 
-def probe_audio(path: Path) -> dict:
+def probe_audio(path: Path) -> dict[str, Any]:
   command = [
     "ffprobe",
     "-v",

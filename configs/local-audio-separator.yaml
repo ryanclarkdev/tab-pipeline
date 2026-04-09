@@ -3,7 +3,7 @@ pipeline:
 
 normalize:
   sample_rate: 44100
-  channels: 1
+  channels: 2
   codec: pcm_s16le
 
 separation:

@@ -8,6 +8,7 @@ build/
 dist/
 *.egg-info/
 .eggs/
+*.pkg
 
 # Virtual environments
 .venv/

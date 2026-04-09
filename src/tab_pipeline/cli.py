@@ -4,7 +4,7 @@ import typer
 
 from tab_pipeline.core.cleanup import clear_run_directories
 from tab_pipeline.core.runner import bootstrap_run
-from tab_pipeline.paths import RUNS_DIR
+from tab_pipeline.constants import RUNS_DIR
 
 app = typer.Typer(
   help="Local staged audio-to-tab pipeline.",

@@ -26,17 +26,5 @@ class RunPaths:
   def separate_dir(self) -> Path:
     return self.workspace_dir / "separate"
 
-  @property
-  def bass_stem_path(self) -> Path:
-    return self.separate_dir / "bass.wav"
-
-  @property
-  def guitar_stem_path(self) -> Path:
-    return self.separate_dir / "guitar.wav"
-
   def stem_output_path(self, stem: str) -> Path:
-    if stem == "bass":
-      return self.bass_stem_path
-    if stem == "guitar":
-      return self.guitar_stem_path
-    raise ValueError(f"Unsupported stem: {stem}")
+    return self.separate_dir / f"{stem}.wav"
